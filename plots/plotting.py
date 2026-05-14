@@ -35,6 +35,11 @@ def plot_accuracy_vs_compression(results_dict: Dict[float, dict], save_path: Pat
     plt.figure(figsize=(9, 6))
     plt.plot(cs_ratios, cs_accs, marker="o", label="Count Sketch")
     plt.axhline(fedavg_acc, linestyle="--", label=f"FedAvg ({fedavg_acc:.3f})")
+
+    # Add labels with compression ratios at each point
+    for ratio, acc in zip(cs_ratios, cs_accs):
+        plt.text(ratio, acc + 0.01, f"{ratio}x", ha="center", fontsize=9)
+
     plt.xscale("log")
     plt.xlabel("Compression ratio (log scale; 1 = uncompressed FedAvg)")
     plt.ylabel("Final test accuracy")
@@ -106,6 +111,7 @@ def plot_gradient_recovery(
     true_gradient: torch.Tensor,
     sketch_estimates_dict: Dict[float, torch.Tensor],
     save_path: Path,
+    rows_cols_per_row: list[int] | None = None,
 ) -> None:
     """Compare true gradient coordinates against Count Sketch estimates.
 
@@ -114,14 +120,23 @@ def plot_gradient_recovery(
         sketch_estimates_dict: Mapping from compression ratio to reconstructed
             gradient estimate.
         save_path: Destination PNG path.
+        rows_cols_per_row: List of column counts per row. E.g., [3, 3, 1] means
+            3 plots on first row, 3 on second, 1 on third. If None, defaults to
+            one row with all plots.
     """
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
     ratios = sorted(sketch_estimates_dict.keys())
     n = len(ratios)
-    fig, axes = plt.subplots(1, n, figsize=(5 * n, 4), sharex=True, sharey=True)
-    if n == 1:
-        axes = [axes]
+
+    if rows_cols_per_row is None:
+        rows_cols_per_row = [n]
+
+    nrows = len(rows_cols_per_row)
+    max_cols = max(rows_cols_per_row)
+
+    fig = plt.figure(figsize=(5 * max_cols, 4 * nrows))
+    gs = plt.GridSpec(nrows, max_cols, figure=fig)
 
     x_full = true_gradient.detach().cpu().numpy()
     rng = np.random.RandomState(0)
@@ -134,13 +149,23 @@ def plot_gradient_recovery(
     min_val = float(np.percentile(x, 1))
     max_val = float(np.percentile(x, 99))
 
-    for ax, ratio in zip(axes, ratios):
-        y = sketch_estimates_dict[ratio].detach().cpu().numpy()[sample_idx]
-        ax.scatter(x, y, s=8, alpha=0.35)
-        ax.plot([min_val, max_val], [min_val, max_val], linestyle="--", linewidth=1)
-        ax.set_title(f"CS compression {ratio}x")
-        ax.set_xlabel("True gradient")
-        ax.set_ylabel("Recovered estimate")
+    plot_idx = 0
+    for row_idx, ncols_in_row in enumerate(rows_cols_per_row):
+        # Center plots if fewer columns than max
+        col_offset = (max_cols - ncols_in_row) // 2
+        for col_idx in range(ncols_in_row):
+            if plot_idx >= n:
+                break
+
+            ax = fig.add_subplot(gs[row_idx, col_offset + col_idx])
+            ratio = ratios[plot_idx]
+            y = sketch_estimates_dict[ratio].detach().cpu().numpy()[sample_idx]
+            ax.scatter(x, y, s=8, alpha=0.35)
+            ax.plot([min_val, max_val], [min_val, max_val], linestyle="--", linewidth=1)
+            ax.set_title(f"CS compression {ratio}x")
+            ax.set_xlabel("True gradient")
+            ax.set_ylabel("Recovered estimate")
+            plot_idx += 1
 
     fig.suptitle("Count Sketch gradient reconstruction quality")
     plt.tight_layout()

@@ -1,17 +1,7 @@
-"""Run the complete MNIST federated learning experiment.
+"""Regenerate the three plots from saved experiment results without re-training."""
 
-This script is intentionally linear and readable.  It performs exactly the
-steps described in the project prompt: seed everything, train FedAvg, train
-Count Sketch variants, save result files, and generate the three required
-figures.
-"""
-
-from __future__ import annotations
-
-import random
 from pathlib import Path
 
-import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
@@ -21,25 +11,11 @@ from src.evaluate import capture_single_round_gradient
 from src.model import SmallCNN
 from src.server import count_parameters
 from src.sketch import CountSketch
-from src.trainer import federated_train
 from plots.plotting import (
     plot_accuracy_vs_compression,
     plot_gradient_recovery,
     plot_prediction_grid,
 )
-
-
-def set_all_seeds(seed: int) -> None:
-    """Set Python, NumPy, and PyTorch seeds for reproducible experiments."""
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-    # Deterministic algorithms can make some GPU operations slower, but this
-    # project favors clarity/reproducibility over peak throughput.
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
 
 
 def _result_path(method: str, ratio: int | None = None) -> Path:
@@ -58,37 +34,35 @@ def _load_model_from_result(result: dict) -> SmallCNN:
 
 
 def main() -> None:
-    """Run all experiments and generate all figures."""
-    set_all_seeds(config.SEED)
-    config.RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    config.FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    """Load results and regenerate all three plots."""
+    print("Loading saved results...")
+    all_results = {}
 
-    print(f"Detected device: {config.DEVICE}")
-    print("Starting FedAvg baseline...")
-    fedavg_result = federated_train(method="fedavg", config=config)
-    print("Finished FedAvg baseline.")
+    # Load FedAvg baseline
+    fedavg_path = _result_path("fedavg")
+    if not fedavg_path.exists():
+        raise FileNotFoundError(f"FedAvg result not found at {fedavg_path}")
+    fedavg_result = torch.load(fedavg_path, weights_only=False)
+    all_results[1] = fedavg_result
 
-    all_results: dict[float, dict] = {1: fedavg_result}
-
+    # Load Count Sketch results
     for ratio in config.SKETCH_COMPRESSION_RATIOS:
-        print(f"Starting Count Sketch run at target compression {ratio}x...")
-        result = federated_train(
-            method="countsketch",
-            sketch_compression_ratio=ratio,
-            config=config,
-        )
-        all_results[ratio] = result
-        print(f"Finished Count Sketch run at target compression {ratio}x.")
+        cs_path = _result_path("countsketch", ratio)
+        if cs_path.exists():
+            all_results[ratio] = torch.load(cs_path, weights_only=False)
+            print(f"  Loaded CS@{ratio}")
+        else:
+            print(f"  Warning: CS@{ratio} not found, skipping")
 
-    print("Generating plots...")
+    # Plot 1: Accuracy vs Compression
+    print("Generating accuracy_vs_compression.png...")
     plot_accuracy_vs_compression(
         all_results,
         config.FIGURES_DIR / "accuracy_vs_compression.png",
     )
 
-    # Build the prediction-grid models requested in the prompt.  If a particular
-    # ratio is absent because the configuration was changed, we skip it rather
-    # than crashing after a long experiment.
+    # Plot 2: Prediction Grid
+    print("Generating prediction_grid.png...")
     _, test_dataset = load_mnist()
     test_loader = DataLoader(test_dataset, batch_size=256, shuffle=False, num_workers=0)
     models_for_grid = {"FedAvg": _load_model_from_result(fedavg_result)}
@@ -103,8 +77,8 @@ def main() -> None:
         label_map=label_map,
     )
 
-    # Visualization 3 uses one exact gradient vector and several reconstructed
-    # versions to show how sketch size controls approximation quality.
+    # Plot 3: Gradient Recovery
+    print("Generating gradient_recovery.png...")
     diagnostic_model = _load_model_from_result(fedavg_result)
     small_loader = DataLoader(test_dataset, batch_size=config.BATCH_SIZE, shuffle=True, num_workers=0)
     true_gradient = capture_single_round_gradient(diagnostic_model, small_loader, config.DEVICE)
@@ -127,8 +101,7 @@ def main() -> None:
         config.FIGURES_DIR / "gradient_recovery.png",
     )
 
-    print(f"Saved results to: {config.RESULTS_DIR}")
-    print(f"Saved figures to: {config.FIGURES_DIR}")
+    print(f"All plots saved to: {config.FIGURES_DIR}")
 
 
 if __name__ == "__main__":
