@@ -52,7 +52,7 @@ def compute_update_vector(
     old_state_dict: Mapping[str, torch.Tensor],
     new_state_dict: Mapping[str, torch.Tensor],
 ) -> torch.Tensor:
-    """Flatten ``new_params - old_params`` into one update vector.
+    """Flatten (new_params - old_params) into one update vector.
 
     Args:
         old_state_dict: Parameters before local client training.

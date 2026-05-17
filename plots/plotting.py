@@ -11,6 +11,7 @@ import seaborn as sns
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
+import math
 
 from src.evaluate import get_sample_predictions
 
@@ -168,6 +169,38 @@ def plot_gradient_recovery(
             plot_idx += 1
 
     fig.suptitle("Count Sketch gradient reconstruction quality")
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.close()
+
+
+def plot_accuracy_history_grid(results_dict, save_path):
+    cs_ratios = sorted(r for r in results_dict if r != 1)
+    n = len(cs_ratios)                        # 7 ratios in default config
+    ncols = min(n, 3)
+    nrows = math.ceil(n / ncols)
+
+    fig, axes = plt.subplots(nrows, ncols, figsize=(6 * ncols, 4 * nrows), squeeze=False)
+
+    fedavg_history = results_dict[1]["accuracy_history"]   # for reference line
+
+    for i, ratio in enumerate(cs_ratios):
+        ax = axes[i // ncols][i % ncols]
+        history = results_dict[ratio]["accuracy_history"]
+        rounds = range(1, len(history) + 1)
+        ax.plot(rounds, history, label=f"CS {ratio}x")
+        ax.plot(rounds, fedavg_history, linestyle="--", label="FedAvg")
+        ax.set_title(f"Compression {ratio}x")
+        ax.set_xlabel("Round")
+        ax.set_ylabel("Test accuracy")
+        ax.set_ylim(0, 1)
+        ax.legend()
+
+    # Hide any unused axes in the last row
+    for j in range(n, nrows * ncols):
+        axes[j // ncols][j % ncols].set_visible(False)
+
+    fig.suptitle("Test accuracy per FL round by compression ratio")
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.close()

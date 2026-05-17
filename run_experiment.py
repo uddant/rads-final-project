@@ -1,9 +1,9 @@
 """Run the complete MNIST federated learning experiment.
 
-This script is intentionally linear and readable.  It performs exactly the
-steps described in the project prompt: seed everything, train FedAvg, train
-Count Sketch variants, save result files, and generate the three required
-figures.
+Outline: seed everything, train FedAvg, train
+Count Sketch variants, save result files, and generate the three figures.
+
+A lot of the GPU-optimization was aided by AI tools from Anthropic and OpenAI
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from src import config
-from src.data import load_mnist, get_emnist_label_map
+from src.data import load_dataset, get_emnist_label_map
 from src.evaluate import capture_single_round_gradient
 from src.model import SmallCNN
 from src.server import count_parameters
@@ -26,6 +26,7 @@ from plots.plotting import (
     plot_accuracy_vs_compression,
     plot_gradient_recovery,
     plot_prediction_grid,
+    plot_accuracy_history_grid,
 )
 
 
@@ -36,8 +37,6 @@ def set_all_seeds(seed: int) -> None:
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-    # Deterministic algorithms can make some GPU operations slower, but this
-    # project favors clarity/reproducibility over peak throughput.
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
@@ -86,16 +85,16 @@ def main() -> None:
         config.FIGURES_DIR / "accuracy_vs_compression.png",
     )
 
-    # Build the prediction-grid models requested in the prompt.  If a particular
+    # Build the prediction-grid models. If a particular
     # ratio is absent because the configuration was changed, we skip it rather
     # than crashing after a long experiment.
-    _, test_dataset = load_mnist()
+    _, test_dataset = load_dataset()
     test_loader = DataLoader(test_dataset, batch_size=256, shuffle=False, num_workers=0)
     models_for_grid = {"FedAvg": _load_model_from_result(fedavg_result)}
     for ratio in config.SKETCH_COMPRESSION_RATIOS:
         if ratio in all_results:
             models_for_grid[f"CS@{ratio}"] = _load_model_from_result(all_results[ratio])
-    label_map = get_emnist_label_map(config.EMNIST_SPLIT)
+    label_map = get_emnist_label_map()
     plot_prediction_grid(
         models_for_grid,
         test_loader,
@@ -125,6 +124,11 @@ def main() -> None:
         true_gradient,
         sketch_estimates,
         config.FIGURES_DIR / "gradient_recovery.png",
+    )
+
+    plot_accuracy_history_grid(
+        all_results,
+        config.FIGURES_DIR / "accuracy_history_grid.png",
     )
 
     print(f"Saved results to: {config.RESULTS_DIR}")

@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from src import config
-from src.data import load_mnist, get_emnist_label_map
+from src.data import load_dataset, get_emnist_label_map
 from src.evaluate import capture_single_round_gradient
 from src.model import SmallCNN
 from src.server import count_parameters
@@ -15,6 +15,7 @@ from plots.plotting import (
     plot_accuracy_vs_compression,
     plot_gradient_recovery,
     plot_prediction_grid,
+    plot_accuracy_history_grid,
 )
 
 
@@ -61,15 +62,22 @@ def main() -> None:
         config.FIGURES_DIR / "accuracy_vs_compression.png",
     )
 
-    # Plot 2: Prediction Grid
+    # Plot 2: Accuracy History Grid
+    print("Generating accuracy_history_grid.png...")
+    plot_accuracy_history_grid(
+        all_results,
+        config.FIGURES_DIR / "accuracy_history_grid.png",
+    )
+
+    # Plot 3: Prediction Grid
     print("Generating prediction_grid.png...")
-    _, test_dataset = load_mnist()
+    _, test_dataset = load_dataset()
     test_loader = DataLoader(test_dataset, batch_size=256, shuffle=False, num_workers=0)
     models_for_grid = {"FedAvg": _load_model_from_result(fedavg_result)}
     for ratio in config.SKETCH_COMPRESSION_RATIOS:
         if ratio in all_results:
             models_for_grid[f"CS@{ratio}"] = _load_model_from_result(all_results[ratio])
-    label_map = get_emnist_label_map(config.EMNIST_SPLIT)
+    label_map = get_emnist_label_map()
     plot_prediction_grid(
         models_for_grid,
         test_loader,
@@ -77,7 +85,7 @@ def main() -> None:
         label_map=label_map,
     )
 
-    # Plot 3: Gradient Recovery
+    # Plot 4: Gradient Recovery
     print("Generating gradient_recovery.png...")
     diagnostic_model = _load_model_from_result(fedavg_result)
     small_loader = DataLoader(test_dataset, batch_size=config.BATCH_SIZE, shuffle=True, num_workers=0)

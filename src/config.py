@@ -2,7 +2,7 @@
 
 Every major hyperparameter lives in this file so experiments are easy to
 inspect and modify.  The training code imports these constants instead of
-hard-coding values, which makes the project easier to reproduce.
+hard-coding values.
 
 DEVICE: automatically chooses GPU when PyTorch can see CUDA, otherwise CPU.
 SEED: random seed used for Python, NumPy, and PyTorch reproducibility.
@@ -34,9 +34,9 @@ LOCAL_EPOCHS = 1
 BATCH_SIZE = 32
 LEARNING_RATE = 0.01
 NUM_ROUNDS = 50
-SHARDS_PER_CLIENT = 2
+SHARDS_PER_CLIENT = 4
 
-EMNIST_SPLIT = "balanced"
+# Using "balanced" split for EMNIST
 NUM_CLASSES = 47
 
 SKETCH_ROWS = 10

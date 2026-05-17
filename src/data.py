@@ -12,7 +12,7 @@ from torchvision import datasets, transforms
 from . import config
 
 
-def load_mnist() -> tuple[datasets.EMNIST, datasets.EMNIST]:
+def load_dataset() -> tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]:
     """Download and return MNIST train/test datasets.
 
     Returns:
@@ -40,47 +40,25 @@ def load_mnist() -> tuple[datasets.EMNIST, datasets.EMNIST]:
     return train_dataset, test_dataset
 
 
-def get_emnist_label_map(split: str) -> Dict[int, str]:
+def get_emnist_label_map() -> Dict[int, str]:
     """Return a mapping from integer class index to human-readable character.
-
-    Args:
-        split: One of the torchvision EMNIST split names: ``"balanced"``,
-            ``"byclass"``, ``"bymerge"``, ``"letters"``, ``"digits"``,
-            ``"mnist"``.
 
     Returns:
         Dict mapping each class index (0-based, as torchvision produces them)
         to a display string such as ``'A'``, ``'n'``, or ``'7'``.
 
     EMNIST label ordering (torchvision remaps all splits to start at 0):
-        - ``digits`` / ``mnist``: 0–9 → '0'–'9'  (identical to plain MNIST)
-        - ``letters``: 0–25 → 'a'–'z'  (case-insensitive; torchvision subtracts 1
-          from the raw 1-based labels)
-        - ``balanced``: 0–9 digits, 10–35 A–Z, 36–46 visually-distinct lowercase
+        - ``balanced``: 0-9 digits, 10-35 A-Z, 36-46 visually-distinct lowercase
           letters (a b d e f g h n q r t)
-        - ``byclass`` / ``bymerge``: 0–9 digits, 10–35 A–Z, 36–61 a–z
     """
     digits = {i: str(i) for i in range(10)}
     upper = {10 + i: chr(ord("A") + i) for i in range(26)}
+    # These 11 lowercase letters were kept because they are visually
+    # distinct enough from their uppercase versions in the dataset.
+    balanced_lower_chars = list("abdefghnqrt")
+    lower = {36 + i: c for i, c in enumerate(balanced_lower_chars)}
+    return {**digits, **upper, **lower}
 
-    if split in ("digits", "mnist"):
-        return digits
-
-    if split == "letters":
-        return {i: chr(ord("a") + i) for i in range(26)}
-
-    if split == "balanced":
-        # These 11 lowercase letters were kept because they are visually
-        # distinct enough from their uppercase counterparts in the dataset.
-        balanced_lower_chars = list("abdefghnqrt")
-        lower = {36 + i: c for i, c in enumerate(balanced_lower_chars)}
-        return {**digits, **upper, **lower}
-
-    if split in ("byclass", "bymerge"):
-        lower = {36 + i: chr(ord("a") + i) for i in range(26)}
-        return {**digits, **upper, **lower}
-
-    raise ValueError(f"Unknown EMNIST split: {split!r}")
 
 def partition_non_iid(
     train_dataset: datasets.MNIST,

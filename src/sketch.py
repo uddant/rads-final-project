@@ -1,35 +1,4 @@
-"""Count Sketch compression for high-dimensional model updates.
-
-Count Sketch is a randomized linear sketch for compressing a long vector into a
-much smaller matrix.  For each coordinate of the input vector, every sketch row
-chooses two things: a bucket index and a random sign.  The coordinate's value is
-multiplied by that sign and added into the chosen bucket.  Many coordinates may
-collide in the same bucket, so reconstruction is approximate rather than exact.
-
-Count Sketch is closely related to Count-Min Sketch, but it is the right tool
-for gradients and neural-network updates because model updates contain positive
-and negative values.  Count-Min Sketch assumes nonnegative counts and recovers
-using a minimum operation.  Count Sketch adds random signs and recovers by taking
-a median across rows.  The signs make each coordinate estimate unbiased even
-when other coordinates collide with it.
-
-The key property for federated learning is linearity:
-
-    sketch(a + b) = sketch(a) + sketch(b)
-
-This means clients can transmit compressed update sketches, the server can add
-and average those sketches directly, and only then reconstruct an approximate
-average update.  The server never needs each client's full update vector.
-
-Informally, reconstruction error decreases as sketch width grows.  For a vector
-v, collision noise variance scales like ||v||^2 / w, where w is the number of
-columns per row.  More columns mean fewer collisions; more rows make the median
-more robust to unlucky collisions.
-
-This implementation pre-computes all hash buckets and signs as tensors.  The
-same object can be moved to CPU or GPU, and sketching uses tensor operations
-rather than Python loops over coordinates.
-"""
+"""Count Sketch compression for model updates."""
 
 from __future__ import annotations
 
@@ -91,6 +60,7 @@ class CountSketch:
         # For each row, add signed vector entries into their assigned buckets.
         # scatter_add_ is the tensor equivalent of:
         #   sketch[row, h_row[j]] += s_row[j] * vector[j]
+        # thank you Claude.
         for row in range(self.num_rows):
             sketch_matrix[row].scatter_add_(0, buckets[row], signs[row] * vector)
 

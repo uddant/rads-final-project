@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 from . import config
 from .client import clone_state_dict, compute_update_vector, local_train
-from .data import load_mnist, partition_non_iid
+from .data import load_dataset, partition_non_iid
 from .evaluate import evaluate_accuracy
 from .model import SmallCNN
 from .server import apply_update_vector, count_parameters, fedavg_aggregate, sketch_aggregate
@@ -23,7 +23,7 @@ from .sketch import CountSketch
 
 
 def _make_client_loaders(cfg: ModuleType) -> tuple[dict[int, DataLoader], DataLoader]:
-    """Load MNIST, split clients, and build DataLoaders.
+    """Load dataset, split clients, and build DataLoaders.
 
     Args:
         cfg: Configuration module containing experiment constants.
@@ -31,7 +31,7 @@ def _make_client_loaders(cfg: ModuleType) -> tuple[dict[int, DataLoader], DataLo
     Returns:
         ``(client_loaders, test_loader)``.
     """
-    train_dataset, test_dataset = load_mnist()
+    train_dataset, test_dataset = load_dataset()
     client_subsets = partition_non_iid(
         train_dataset, cfg.NUM_CLIENTS, cfg.SHARDS_PER_CLIENT
     )

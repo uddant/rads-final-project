@@ -10,11 +10,12 @@ import torch.nn.functional as F
 class SmallCNN(nn.Module):
     """A compact CNN that trains quickly in a federated simulation.
 
-    The model has roughly ~190k trainable parameters:
-        conv1: 32 * 1 * 5 * 5 + 32 = 832
-        conv2: 64 * 32 * 5 * 5 + 64 = 51,264
-        fc1:   1024 * 128 + 128 = 131,200
-        fc2:   128 * num_classes + num_classes = varies
+    The model has roughly ~170k trainable parameters for EMNIST (num_classes=47):
+        conv1: 1 * 32 * 5 * 5 + 32 = 832
+        conv2: 32 * 32 * 5 * 5 + 32 = 25,632
+        fc1:   512 * 256 + 256 = 131,328
+        fc2:   256 * 47 + 47 = 12,079
+        Total: 169,871 parameters
         The parameter count is modest enough for CPU experiments, yet large enough
         that compressing update vectors with Count Sketch is meaningful.
     """
@@ -23,9 +24,9 @@ class SmallCNN(nn.Module):
         """Create the convolutional and fully connected layers."""
         super().__init__()
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=5)
-        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=5)
-        self.fc1 = nn.Linear(64 * 4 * 4, 128)
-        self.fc2 = nn.Linear(128, num_classes)
+        self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=5)
+        self.fc1 = nn.Linear(32 * 4 * 4, 256)
+        self.fc2 = nn.Linear(256, num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Run a batch of MNIST images through the network.
