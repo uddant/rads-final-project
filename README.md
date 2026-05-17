@@ -1,8 +1,6 @@
 # Federated Learning with Count Sketch Compression on MNIST
 
-This project implements a small, readable federated learning experiment on MNIST. It compares standard uncompressed **FedAvg** against **Count Sketch-compressed client updates** at several compression ratios.
-
-The code is designed for an academic final project: every module is commented, the Count Sketch implementation is intentionally explicit, and the notebook explains sketching separately from federated learning.
+This project implements a small, readable federated learning experiment on EMNIST. It compares standard uncompressed **FedAvg** against **Count Sketch-compressed client updates** at several compression ratios.
 
 ## Project layout
 
@@ -14,6 +12,7 @@ fedlearn_countsketch/
 ├── results/              # generated .pt result files
 ├── figures/              # generated .png figures
 └── notebooks/            # standalone Count Sketch demo notebook
+(you might need to manually create results and figures if they got gitignored)
 ```
 
 ## Installation
@@ -57,8 +56,4 @@ The notebook uses synthetic vectors only. It demonstrates Count Sketch intuition
 
 ## Runtime notes
 
-The default configuration uses 100 clients, 10 clients per round, 50 communication rounds, and one local epoch per selected client. If runtime is too high on your machine, reduce `NUM_ROUNDS` in `src/config.py` first. The project is written to favor clarity over maximum speed.
-
-## Expected behavior
-
-FedAvg should reach strong MNIST accuracy after enough rounds. Count Sketch at moderate compression, especially around 10x, should usually stay close to FedAvg, while very aggressive compression should visibly degrade prediction quality and gradient reconstruction.
+The default configuration uses 100 clients, 10 clients per round, 50 communication rounds, and one local epoch per selected client. If runtime is too high on your machine, reduce `NUM_ROUNDS` in `src/config.py` first
